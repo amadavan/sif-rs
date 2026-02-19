@@ -1,7 +1,15 @@
 [package]
 name = "sif-rs"
-version = "0.1.0"
+authors = ["Avinash Madavan <avinash.madavan@gmail.com>"]
+version = "0.9.0"
+rust-version = "1.85"
 edition = "2024"
+description = "Parser for the Standard Input Format (SIF) used in mathematical optimization"
+license = "MIT"
+repository = "https://github.com/amadavan/sif-rs"
+keywords = ["sif", "mps", "optimization", "parser"]
+categories = ["parser-implementations", "mathematics", "science"]
+readme = "README.md"
 
 [dependencies]
 derive_more = {version = "2.1.1", features = ["full"]}

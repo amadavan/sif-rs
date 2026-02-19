@@ -65,23 +65,23 @@ public API. This will change in a future release.
 ## Supported sections
 
 | Section | Aliases | Description |
-|---------|---------|-------------|
-| `NAME` | | Problem name |
+| ------- | ------- | ----------- |
+| `NAME` | — | Problem name |
 | `ROWS` | `GROUPS`, `CONSTRAINTS` | Constraint/row definitions |
 | `COLUMNS` | `VARIABLES` | Variable-to-row coefficient entries |
 | `RHS` | `CONSTANTS`, `RHS'` | Right-hand side values |
-| `RANGES` | | Range values for constraints *(stub)* |
-| `BOUNDS` | | Variable bounds |
-| `START POINT` | | Warm-start variable values *(stub)* |
+| `RANGES` | — | Range values for constraints *(stub)* |
+| `BOUNDS` | — | Variable bounds |
+| `START POINT` | — | Warm-start variable values *(stub)* |
 | `QUADRATIC` | `HESSIAN`, `QUADS`, `QUADOBJ`, `QSECTION` | Quadratic objective terms |
-| `ELEMENT TYPE` | | Nonlinear element-type definitions *(stub)* |
-| `ELEMENT USES` | | Nonlinear element instantiations *(stub)* |
-| `GROUP TYPE` | | Nonlinear group-type definitions *(stub)* |
-| `GROUP USES` | | Nonlinear group instantiations *(stub)* |
-| `OBJECT BOUNDS` | | Known bounds on the objective value *(stub)* |
-| `ENDATA` | | End-of-file marker |
+| `ELEMENT TYPE` | — | Nonlinear element-type definitions *(stub)* |
+| `ELEMENT USES` | — | Nonlinear element instantiations *(stub)* |
+| `GROUP TYPE` | — | Nonlinear group-type definitions *(stub)* |
+| `GROUP USES` | — | Nonlinear group instantiations *(stub)* |
+| `OBJECT BOUNDS` | — | Known bounds on the objective value *(stub)* |
+| `ENDATA` | — | End-of-file marker |
 
-Sections marked *stub* are recognised but their data is not yet stored or returned.
+Sections marked *stub* are recognized but their data is not yet stored or returned.
 
 ## Known limitations
 

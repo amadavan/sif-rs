@@ -212,7 +212,9 @@ impl SifParser {
     }
 
     fn parse_columns(&self, _input: &str) -> Result<(), ParseError> {
-        todo!()
+        Err(ParseError {
+            message: "Column definitions are not supported in this version".to_string(),
+        })
     }
 
     fn parse_entries(
@@ -282,7 +284,9 @@ impl SifParser {
     }
 
     fn parse_ranges(&self, _input: &str) -> Result<Vec<(String, f64)>, ParseError> {
-        todo!()
+        Err(ParseError {
+            message: "Range entries are not supported in this version".to_string(),
+        })
     }
 
     fn parse_bounds(
@@ -323,27 +327,39 @@ impl SifParser {
     }
 
     fn parse_start_point(&self, _input: &str) -> Result<Vec<(String, f64)>, ParseError> {
-        todo!()
+        Err(ParseError {
+            message: "Start point entries are not supported in this version".to_string(),
+        })
     }
 
     fn parse_element_type(&self, _input: &str) -> Result<(), ParseError> {
-        todo!()
+        Err(ParseError {
+            message: "Element type entries are not supported in this version".to_string(),
+        })
     }
 
     fn parse_element_uses(&self, _input: &str) -> Result<(), ParseError> {
-        todo!()
+        Err(ParseError {
+            message: "Element uses entries are not supported in this version".to_string(),
+        })
     }
 
     fn parse_group_type(&self, _input: &str) -> Result<(), ParseError> {
-        todo!()
+        Err(ParseError {
+            message: "Group type entries are not supported in this version".to_string(),
+        })
     }
 
     fn parse_group_uses(&self, _input: &str) -> Result<(), ParseError> {
-        todo!()
+        Err(ParseError {
+            message: "Group uses entries are not supported in this version".to_string(),
+        })
     }
 
     fn parse_object_bounds(&self, _input: &str) -> Result<(), ParseError> {
-        todo!()
+        Err(ParseError {
+            message: "Object bounds entries are not supported in this version".to_string(),
+        })
     }
 
     fn validate(&self) -> Result<bool, ParseError> {
@@ -370,9 +386,6 @@ impl SifParser {
                 message: "Duplicate row names found".to_string(),
             });
         }
-
-        println!("Vars: {:?}", vars);
-        println!("Constraints: {:?}", constraints);
 
         // Validate entries reference defined rows and columns
         for (row_name, col_name, _) in &self.entries {
