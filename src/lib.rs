@@ -211,7 +211,7 @@ impl SifParser {
         Ok(&self.rows)
     }
 
-    fn parse_columns(&self, input: &str) -> Result<(), ParseError> {
+    fn parse_columns(&self, _input: &str) -> Result<(), ParseError> {
         todo!()
     }
 
@@ -281,7 +281,7 @@ impl SifParser {
         Ok(&self.rhs)
     }
 
-    fn parse_ranges(&self, input: &str) -> Result<Vec<(String, f64)>, ParseError> {
+    fn parse_ranges(&self, _input: &str) -> Result<Vec<(String, f64)>, ParseError> {
         todo!()
     }
 
@@ -297,7 +297,7 @@ impl SifParser {
             })?;
             let type_str = row[..sep as usize].trim();
             let row = row[sep as usize..].trim_start();
-            let (f1, f2, val1, f4, val2) = parse_sif_row::<String, String, f64, String, f64>(row)?;
+            let (f1, f2, val1, _, _) = parse_sif_row::<String, String, f64, String, f64>(row)?;
             bounds.push((f1.clone(), BoundType::from_str(type_str)?, f2, val1));
         }
 
@@ -313,7 +313,8 @@ impl SifParser {
                 message: "Separator not set before parsing entries".to_string(),
             })?;
             let row = row[sep as usize..].trim_start();
-            let (f1, f2, val1, f4, val2) = parse_sif_row::<String, String, f64, String, f64>(row)?;
+            let (f1, f2, val1, _f4, _val2) =
+                parse_sif_row::<String, String, f64, String, f64>(row)?;
             qterms.push((f1.clone(), f2.clone(), val1));
         }
 
@@ -321,27 +322,27 @@ impl SifParser {
         Ok(&self.quadratic)
     }
 
-    fn parse_start_point(&self, input: &str) -> Result<Vec<(String, f64)>, ParseError> {
+    fn parse_start_point(&self, _input: &str) -> Result<Vec<(String, f64)>, ParseError> {
         todo!()
     }
 
-    fn parse_element_type(&self, input: &str) -> Result<(), ParseError> {
+    fn parse_element_type(&self, _input: &str) -> Result<(), ParseError> {
         todo!()
     }
 
-    fn parse_element_uses(&self, input: &str) -> Result<(), ParseError> {
+    fn parse_element_uses(&self, _input: &str) -> Result<(), ParseError> {
         todo!()
     }
 
-    fn parse_group_type(&self, input: &str) -> Result<(), ParseError> {
+    fn parse_group_type(&self, _input: &str) -> Result<(), ParseError> {
         todo!()
     }
 
-    fn parse_group_uses(&self, input: &str) -> Result<(), ParseError> {
+    fn parse_group_uses(&self, _input: &str) -> Result<(), ParseError> {
         todo!()
     }
 
-    fn parse_object_bounds(&self, input: &str) -> Result<(), ParseError> {
+    fn parse_object_bounds(&self, _input: &str) -> Result<(), ParseError> {
         todo!()
     }
 
@@ -536,9 +537,7 @@ impl From<&SifParser> for SIF {
         let bounds: BTreeMap<String, (BoundType, f64)> = parser
             .bounds
             .iter()
-            .map(|(bound_name, bound_type, col_name, value)| {
-                ((col_name.clone()), (*bound_type, *value))
-            })
+            .map(|(_, bound_type, col_name, value)| ((col_name.clone()), (*bound_type, *value)))
             .collect();
 
         let quadratic: BTreeMap<(String, String), f64> = parser
@@ -588,6 +587,7 @@ impl From<&SifParser> for SIF {
 /// Contains all data extracted from a SIF file. Sections that are absent in
 /// the input are represented as empty maps. The fields are currently private;
 /// public accessors will be added in a future release.
+#[allow(unused)]
 pub struct SIF {
     /// Problem name (from the `NAME` line).
     name: String,
@@ -618,6 +618,7 @@ pub struct SIF {
 
 impl SIF {
     /// Creates a new empty SIF problem.
+    #[allow(unused)]
     fn new() -> Self {
         SIF {
             name: String::new(),
@@ -649,6 +650,20 @@ pub fn parse_sif(input: &str) -> Result<SIF, ParseError> {
     SifParser::parse(input)
 }
 
+/// Reads a SIF file from disk and parses it into a [`SIF`] problem description.
+///
+/// This is a convenience wrapper around [`parse_sif`] that handles file I/O.
+///
+/// # Errors
+///
+/// Returns a [`ParseError`] if the file cannot be read or if the content
+/// cannot be parsed.
+///
+/// # Example
+///
+/// ```no_run
+/// let sif = sif_rs::parse_file("examples/qptest.sif").unwrap();
+/// ```
 pub fn parse_file(path: &str) -> Result<SIF, ParseError> {
     let input = std::fs::read_to_string(path).map_err(|e| ParseError {
         message: format!("Failed to read file: {}", e),

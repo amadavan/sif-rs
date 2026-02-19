@@ -45,12 +45,20 @@ Lines beginning with `*` are comments and are ignored.
 
 ## Usage
 
+Parse a file directly from disk:
+
+```rust
+let sif = sif_rs::parse_file("examples/qptest.sif").unwrap();
+```
+
+Or supply an already-loaded string:
+
 ```rust
 let input = std::fs::read_to_string("examples/qptest.sif").unwrap();
 let sif = sif_rs::parse_sif(&input).unwrap();
 ```
 
-`parse_sif` returns a `SIF` value containing the parsed problem data.
+Both functions return a `SIF` value containing the parsed problem data.
 The `SIF` type is currently **opaque** — its fields are not yet part of the
 public API. This will change in a future release.
 
@@ -66,9 +74,24 @@ public API. This will change in a future release.
 | `BOUNDS` | | Variable bounds |
 | `START POINT` | | Warm-start variable values *(stub)* |
 | `QUADRATIC` | `HESSIAN`, `QUADS`, `QUADOBJ`, `QSECTION` | Quadratic objective terms |
+| `ELEMENT TYPE` | | Nonlinear element-type definitions *(stub)* |
+| `ELEMENT USES` | | Nonlinear element instantiations *(stub)* |
+| `GROUP TYPE` | | Nonlinear group-type definitions *(stub)* |
+| `GROUP USES` | | Nonlinear group instantiations *(stub)* |
+| `OBJECT BOUNDS` | | Known bounds on the objective value *(stub)* |
 | `ENDATA` | | End-of-file marker |
 
-Sections marked *stub* are recognised but their data is not yet returned.
+Sections marked *stub* are recognised but their data is not yet stored or returned.
+
+## Known limitations
+
+- **Column-major ordering** — files where `COLUMNS`/`VARIABLES` appears before
+  `ROWS`/`GROUPS` are not yet supported. Row-major ordering (the common case)
+  works correctly.
+- **LANCELOT nonlinear sections** — `ELEMENT TYPE`, `ELEMENT USES`,
+  `GROUP TYPE`, `GROUP USES`, and `OBJECT BOUNDS` are parsed as stubs; their
+  data is discarded.
+- **RANGES** and **START POINT** are similarly stubbed out.
 
 ## Row types
 
