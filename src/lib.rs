@@ -29,9 +29,16 @@ pub mod types;
 
 use derive_more::Display;
 use regex::Regex;
-use std::{collections::BTreeMap, error::Error, str::FromStr, sync::LazyLock};
+use std::{
+    collections::{BTreeMap, HashSet},
+    error::Error,
+    str::FromStr,
+    sync::LazyLock,
+};
 
 use types::{ColumnType, Indicator, Major, RowType};
+
+use crate::types::BoundType;
 
 /// Error returned when a SIF input cannot be parsed.
 #[derive(Debug, Display)]
@@ -150,7 +157,7 @@ struct SifParser {
 
     rhs: Vec<(String, String, f64)>,
     ranges: Vec<(String, f64)>,
-    bounds: Vec<(String, String, f64)>,
+    bounds: Vec<(String, BoundType, String, f64)>,
     quadratic: Vec<(String, String, f64)>,
 }
 
@@ -171,7 +178,7 @@ impl SifParser {
             message: "ROWS section is empty".to_string(),
         })?;
 
-        let re = Regex::new(r"^(\s+[NGLE]\s+)[a-zA-Z-_0-9]*")
+        let re = Regex::new(r"^(\s+[XZD]?[NGLE]\s+)[a-zA-Z-_0-9]*")
             .unwrap()
             .captures(trimmed)
             .ok_or_else(|| ParseError {
@@ -215,6 +222,9 @@ impl SifParser {
     ) -> Result<&Vec<(String, String, f64)>, ParseError> {
         let mut entries = Vec::new();
 
+        // let row_added = HashSet::new();
+        let mut col_added = HashSet::new();
+
         for row in input.lines() {
             let sep = self.sep.ok_or_else(|| ParseError {
                 message: "Separator not set before parsing entries".to_string(),
@@ -224,10 +234,16 @@ impl SifParser {
 
             match major {
                 Major::Row => {
-                    entries.push((f1.clone(), f2, val1));
+                    // Add columns if necessary
+                    if !col_added.contains(&f1) {
+                        self.cols.push((f1.clone(), ColumnType::__));
+                        col_added.insert(f1.clone());
+                    }
+
+                    entries.push((f2, f1.clone(), val1));
 
                     if val2 != 0.0 {
-                        entries.push((f1.clone(), f4, val2));
+                        entries.push((f4, f1.clone(), val2));
                     }
                 }
                 Major::Column => {
@@ -269,16 +285,20 @@ impl SifParser {
         todo!()
     }
 
-    fn parse_bounds(&mut self, input: &str) -> Result<&Vec<(String, String, f64)>, ParseError> {
+    fn parse_bounds(
+        &mut self,
+        input: &str,
+    ) -> Result<&Vec<(String, BoundType, String, f64)>, ParseError> {
         let mut bounds = Vec::new();
 
         for row in input.lines() {
             let sep = self.sep.ok_or_else(|| ParseError {
                 message: "Separator not set before parsing entries".to_string(),
             })?;
+            let type_str = row[..sep as usize].trim();
             let row = row[sep as usize..].trim_start();
             let (f1, f2, val1, f4, val2) = parse_sif_row::<String, String, f64, String, f64>(row)?;
-            bounds.push((f1.clone(), f2, val1));
+            bounds.push((f1.clone(), BoundType::from_str(type_str)?, f2, val1));
         }
 
         self.bounds = bounds;
@@ -325,6 +345,83 @@ impl SifParser {
         todo!()
     }
 
+    fn validate(&self) -> Result<bool, ParseError> {
+        let vars = self
+            .cols
+            .iter()
+            .map(|(name, _)| name.clone())
+            .collect::<HashSet<String>>();
+
+        if vars.len() != self.cols.len() {
+            return Err(ParseError {
+                message: "Duplicate column names found".to_string(),
+            });
+        }
+
+        let constraints = self
+            .rows
+            .iter()
+            .map(|(name, _)| name.clone())
+            .collect::<HashSet<String>>();
+
+        if constraints.len() != self.rows.len() {
+            return Err(ParseError {
+                message: "Duplicate row names found".to_string(),
+            });
+        }
+
+        println!("Vars: {:?}", vars);
+        println!("Constraints: {:?}", constraints);
+
+        // Validate entries reference defined rows and columns
+        for (row_name, col_name, _) in &self.entries {
+            if !constraints.contains(row_name) {
+                return Err(ParseError {
+                    message: format!("Entry references undefined row: {}", row_name),
+                });
+            }
+            if !vars.contains(col_name) {
+                return Err(ParseError {
+                    message: format!("Entry references undefined column: {}", col_name),
+                });
+            }
+        }
+
+        // Validate RHS entries reference defined rows
+        for (_, row_name, _) in &self.rhs {
+            if !constraints.contains(row_name) {
+                return Err(ParseError {
+                    message: format!("RHS entry references undefined row: {}", row_name),
+                });
+            }
+        }
+
+        // Validate bounds reference defined columns
+        for (_, _, col_name, _) in &self.bounds {
+            if !vars.contains(col_name) {
+                return Err(ParseError {
+                    message: format!("Bound entry references undefined column: {}", col_name),
+                });
+            }
+        }
+
+        // Validate quadratic terms reference defined columns
+        for (col_name_i, col_name_j, _) in &self.quadratic {
+            if !vars.contains(col_name_i) {
+                return Err(ParseError {
+                    message: format!("Quadratic term references undefined column: {}", col_name_i),
+                });
+            }
+            if !vars.contains(col_name_j) {
+                return Err(ParseError {
+                    message: format!("Quadratic term references undefined column: {}", col_name_j),
+                });
+            }
+        }
+
+        Ok(true)
+    }
+
     fn parse(input: &str) -> Result<SIF, ParseError> {
         let mut sif = SifParser {
             name: String::new(),
@@ -361,10 +458,10 @@ impl SifParser {
                 Indicator::Columns | Indicator::Variables => {
                     if major.is_none() {
                         major = Some(Major::Column);
+                        sif.parse_columns(content)?;
                     } else {
                         sif.parse_entries(content, major.unwrap()).unwrap();
                     }
-                    // sif.columns = parse_columns(content, Major::Column);
                 }
                 Indicator::Constants | Indicator::Rhs | Indicator::RhsPrime => {
                     sif.parse_rhs(content).unwrap();
@@ -385,24 +482,26 @@ impl SifParser {
                 | Indicator::QSection => {
                     sif.parse_quadratic(content).unwrap();
                 }
-                // Indicator::ElementType => {
-                //     sif.parse_element_type(content).unwrap();
-                // }
-                // Indicator::ElementUses => {
-                //     sif.parse_element_uses(content).unwrap();
-                // }
-                // Indicator::GroupType => {
-                //     sif.parse_group_type(content).unwrap();
-                // }
-                // Indicator::GroupUses => {
-                //     sif.parse_group_uses(content).unwrap();
-                // }
-                // Indicator::ObjectBounds => {
-                //     sif.parse_object_bounds(content).unwrap();
-                // }
+                Indicator::ElementType => {
+                    sif.parse_element_type(content).unwrap();
+                }
+                Indicator::ElementUses => {
+                    sif.parse_element_uses(content).unwrap();
+                }
+                Indicator::GroupType => {
+                    sif.parse_group_type(content).unwrap();
+                }
+                Indicator::GroupUses => {
+                    sif.parse_group_uses(content).unwrap();
+                }
+                Indicator::ObjectBounds => {
+                    sif.parse_object_bounds(content).unwrap();
+                }
                 _ => { /* Ignore other indicators for now */ }
             };
         }
+
+        let _ = sif.validate()?;
 
         Ok(SIF::from(&sif))
     }
@@ -434,10 +533,12 @@ impl From<&SifParser> for SIF {
             .map(|(_rhs_name, row_name, value)| (row_name.clone(), *value))
             .collect();
 
-        let bounds: BTreeMap<String, f64> = parser
+        let bounds: BTreeMap<String, (BoundType, f64)> = parser
             .bounds
             .iter()
-            .map(|(col_name, _bound_type, value)| ((col_name.clone()), *value))
+            .map(|(bound_name, bound_type, col_name, value)| {
+                ((col_name.clone()), (*bound_type, *value))
+            })
             .collect();
 
         let quadratic: BTreeMap<(String, String), f64> = parser
@@ -503,7 +604,7 @@ pub struct SIF {
     /// Range values for constraints: `(row_name, value)`.
     // ranges: BTreeMap<String, f64>,
     /// Variable bounds keyed by column name.
-    bounds: BTreeMap<String, f64>,
+    bounds: BTreeMap<String, (BoundType, f64)>,
     /// Warm-start values: `(col_name, value)`.
     // start_point: BTreeMap<String, f64>,
     /// Quadratic objective terms keyed by `(col_name_i, col_name_j)`.
@@ -548,6 +649,13 @@ pub fn parse_sif(input: &str) -> Result<SIF, ParseError> {
     SifParser::parse(input)
 }
 
+pub fn parse_file(path: &str) -> Result<SIF, ParseError> {
+    let input = std::fs::read_to_string(path).map_err(|e| ParseError {
+        message: format!("Failed to read file: {}", e),
+    })?;
+    parse_sif(&input)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -559,10 +667,60 @@ mod tests {
 
         assert_eq!(sif.name, "QPTEST");
         assert_eq!(sif.rows.len(), 3);
-        assert_eq!(sif.cols.len(), 3);
+        assert_eq!(sif.cols.len(), 2);
         assert_eq!(sif.entries.len(), 6);
         assert_eq!(sif.rhs.len(), 2);
         assert_eq!(sif.bounds.len(), 1);
         assert_eq!(sif.quadratic.len(), 3);
+
+        assert_eq!(sif.cols.get("c1"), Some(&ColumnType::__));
+        assert_eq!(sif.cols.get("c2"), Some(&ColumnType::__));
+
+        assert_eq!(sif.rows.get("obj"), Some(&RowType::N));
+        assert_eq!(sif.rows.get("r1"), Some(&RowType::G));
+        assert_eq!(sif.rows.get("r2"), Some(&RowType::L));
+
+        assert_eq!(
+            sif.entries.get(&("obj".to_string(), "c1".to_string())),
+            Some(&1.5)
+        );
+        assert_eq!(
+            sif.entries.get(&("r1".to_string(), "c1".to_string())),
+            Some(&2.0)
+        );
+        assert_eq!(
+            sif.entries.get(&("r2".to_string(), "c1".to_string())),
+            Some(&-1.0)
+        );
+        assert_eq!(
+            sif.entries.get(&("obj".to_string(), "c2".to_string())),
+            Some(&-2.0)
+        );
+        assert_eq!(
+            sif.entries.get(&("r1".to_string(), "c2".to_string())),
+            Some(&1.0)
+        );
+        assert_eq!(
+            sif.entries.get(&("r2".to_string(), "c2".to_string())),
+            Some(&2.0)
+        );
+
+        assert_eq!(sif.rhs.get("r1"), Some(&2.0));
+        assert_eq!(sif.rhs.get("r2"), Some(&6.0));
+
+        assert_eq!(sif.bounds.get("c1"), Some(&(BoundType::Up, 20.0)));
+
+        assert_eq!(
+            sif.quadratic.get(&("c1".to_string(), "c1".to_string())),
+            Some(&8.0)
+        );
+        assert_eq!(
+            sif.quadratic.get(&("c1".to_string(), "c2".to_string())),
+            Some(&2.0)
+        );
+        assert_eq!(
+            sif.quadratic.get(&("c2".to_string(), "c2".to_string())),
+            Some(&10.0)
+        );
     }
 }
