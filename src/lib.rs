@@ -76,6 +76,14 @@ fn parse_sif_row<
 >(
     input: &str,
 ) -> Result<(F1, F2, F3, F4, F5), ParseError> {
+    let input = {
+        if input.chars().next() == Some(' ') {
+            "a".to_owned() + &input[1..]
+        } else {
+            input.to_string()
+        }
+    };
+
     let split_input = input.split_whitespace();
     let fields: Vec<&str> = split_input.collect();
 
@@ -163,7 +171,7 @@ struct SifParser {
 
 impl SifParser {
     fn parse_name(&self, input: &str) -> Result<String, ParseError> {
-        let name_line = Regex::new(r"(?m)^NAME\s+[A-Z]+.*")
+        let name_line = Regex::new(r"(?m)^NAME\s+.*")
             .unwrap()
             .find(input)
             .ok_or_else(|| ParseError {
@@ -274,8 +282,9 @@ impl SifParser {
             let sep = self.sep.ok_or_else(|| ParseError {
                 message: "Separator not set before parsing entries".to_string(),
             })?;
-            let row = row[sep as usize..].trim_start();
-            let (f1, f2, val1, f4, val2) = parse_sif_row::<String, String, f64, String, f64>(row)?;
+            let row = row[sep as usize..].to_string();
+            let (f1, f2, val1, f4, val2) =
+                parse_sif_row::<String, String, f64, String, f64>(row.as_str())?;
 
             rhs.push((f1.clone(), f2, val1));
 
@@ -305,8 +314,8 @@ impl SifParser {
                 message: "Separator not set before parsing entries".to_string(),
             })?;
             let type_str = row[..sep as usize].trim();
-            let row = row[sep as usize..].trim_start();
-            let (f1, f2, val1, _, _) = parse_sif_row::<String, String, f64, String, f64>(row)?;
+            let row = row[sep as usize..].to_string();
+            let (f1, f2, val1, _, _) = parse_sif_row::<String, String, f64, String, f64>(&row)?;
             bounds.push((f1.clone(), BoundType::from_str(type_str)?, f2, val1));
         }
 
@@ -768,5 +777,37 @@ mod tests {
         assert_eq!(sif.entries.len(), 88);
         assert_eq!(sif.rhs.len(), 7);
         assert_eq!(sif.bounds.len(), 0);
+    }
+
+    #[test]
+    fn test_blend() {
+        let input = std::fs::read_to_string("examples/BLEND.SIF").unwrap();
+        let sif = parse_sif(&input).unwrap();
+
+        assert_eq!(sif.name, "BLEND");
+    }
+
+    #[test]
+    fn test_sierra() {
+        let input = std::fs::read_to_string("examples/SIERRA.SIF").unwrap();
+        let sif = parse_sif(&input).unwrap();
+
+        assert_eq!(sif.name, "SIERRA");
+    }
+
+    #[test]
+    fn test_dfl001() {
+        let input = std::fs::read_to_string("examples/DFL001.SIF").unwrap();
+        let sif = parse_sif(&input).unwrap();
+
+        assert_eq!(sif.name, "DFL001");
+    }
+
+    #[test]
+    fn test_exdata() {
+        let input = std::fs::read_to_string("examples/EXDATA.SIF").unwrap();
+        let sif = parse_sif(&input).unwrap();
+
+        assert_eq!(sif.name, "EXDATA");
     }
 }
