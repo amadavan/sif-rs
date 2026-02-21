@@ -163,11 +163,16 @@ struct SifParser {
 
 impl SifParser {
     fn parse_name(&self, input: &str) -> Result<String, ParseError> {
-        let input = input.lines().next().ok_or_else(|| ParseError {
-            message: "Input is empty, expected NAME section".to_string(),
-        })?;
-        (&input[..4] == "NAME")
-            .then(|| input[4..].trim().to_string())
+        let name_line = Regex::new(r"(?m)^NAME\s+[A-Z]+.*")
+            .unwrap()
+            .find(input)
+            .ok_or_else(|| ParseError {
+                message: "Failed to find NAME line in input".to_string(),
+            })?
+            .as_str();
+
+        (&name_line[..4] == "NAME")
+            .then(|| name_line[4..].trim().to_string())
             .ok_or_else(|| ParseError {
                 message: "Invalid Sif format: NAME section missing".to_string(),
             })
@@ -750,5 +755,18 @@ mod tests {
             sif.quadratic.get(&("c2".to_string(), "c2".to_string())),
             Some(&10.0)
         );
+    }
+
+    #[test]
+    fn test_netlib_lp() {
+        let input = std::fs::read_to_string("examples/AFIRO.SIF").unwrap();
+        let sif = parse_sif(&input).unwrap();
+
+        assert_eq!(sif.name, "AFIRO");
+        assert_eq!(sif.rows.len(), 28);
+        assert_eq!(sif.cols.len(), 32);
+        assert_eq!(sif.entries.len(), 88);
+        assert_eq!(sif.rhs.len(), 7);
+        assert_eq!(sif.bounds.len(), 0);
     }
 }
