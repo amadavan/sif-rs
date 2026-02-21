@@ -658,6 +658,34 @@ impl SIF {
             quadratic: BTreeMap::new(),
         }
     }
+
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn get_rows(&self) -> &BTreeMap<String, RowType> {
+        &self.rows
+    }
+
+    pub fn get_cols(&self) -> &BTreeMap<String, ColumnType> {
+        &self.cols
+    }
+
+    pub fn get_entries(&self) -> &BTreeMap<(String, String), f64> {
+        &self.entries
+    }
+
+    pub fn get_rhs(&self) -> &BTreeMap<String, f64> {
+        &self.rhs
+    }
+
+    pub fn get_bounds(&self) -> &BTreeMap<String, (BoundType, f64)> {
+        &self.bounds
+    }
+
+    pub fn get_quadratic(&self) -> &BTreeMap<(String, String), f64> {
+        &self.quadratic
+    }
 }
 
 /// Parses a SIF-formatted string into a [`SIF`] problem description.
